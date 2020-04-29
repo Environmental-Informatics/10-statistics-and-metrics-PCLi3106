@@ -181,7 +181,7 @@ def GetAnnualStatistics(DataDF):
     the given streamflow time series.  Values are retuned as a dataframe of
     annual values for each water year.  Water year, as defined by the USGS,
     starts on October 1."""
-    DataDF['Discharge'].dropna()
+    DataDF['Discharge'] = DataDF['Discharge'].dropna()
     # get annual mean
     A_mean = DataDF['Discharge'].resample('AS-OCT').mean()
     # get annual max
@@ -194,8 +194,6 @@ def GetAnnualStatistics(DataDF):
     A_sk   = DataDF.resample('AS-OCT')
     A_sk   = A_sk.apply({'Discharge': lambda x: stats.skew(x,bias=False)})
     A_sk = A_sk.fillna(0)
-    print('A_sk')
-    print(A_sk)
     # get T-Q mean
     A_tq   = CalcTqmean(DataDF['Discharge'])['Tqmean'].resample('AS-OCT').sum()
     # get RB index
@@ -210,7 +208,7 @@ def GetAnnualStatistics(DataDF):
               'Coeff Var': A_cv, 'Skew': A_sk.Discharge, 'Tqmean':A_tq, 'R-B index':A_rb['R-B Index'],
               '7Q': A_7q, '3xMedian': A_3x } 
 #    print(frame)
-    WYDataDF = pd.DataFrame(frame) 
+    WYDataDF = pd.DataFrame(frame, index = DataDF['Discharge'].resample('AS-OCT').index) 
 
     return ( WYDataDF )
 
@@ -219,6 +217,7 @@ def GetMonthlyStatistics(DataDF):
     for the given streamflow time series.  Values are returned as a dataframe
     of monthly values for each year."""
     # get monthly mean
+    DataDF['Discharge'] = DataDF['Discharge'].dropna()
     M_mean = DataDF['Discharge'].resample('M').mean()
     # get annual max
     M_peak = DataDF['Discharge'].resample('M').max()
@@ -235,7 +234,8 @@ def GetMonthlyStatistics(DataDF):
     frame = { 'Mean Flow': M_mean, 'Peak Flow': M_peak, 'Median Flow': M_med,
               'Coeff Var': M_cv, 'Tqmean':M_tq, 'R-B index':M_rb['R-B Index']} 
 #    print(frame)
-    MoDataDF = pd.DataFrame(frame) 
+    MoDataDF = pd.DataFrame(frame, index = DataDF['Discharge'].resample('M').index
+) 
 
     return ( MoDataDF )
 
