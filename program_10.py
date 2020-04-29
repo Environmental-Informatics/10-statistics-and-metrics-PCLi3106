@@ -73,6 +73,7 @@ def CalcTqmean(Qvalues):
        duration rather than the volume of streamflow. The routine returns
        the Tqmean value for the given data array."""
     # get mean value of each year
+    Qvalues = Qvalues.dropna()
     A_mean = Qvalues.resample('AS-OCT').mean()
     Date= Qvalues.index[0]
     wy = 0
@@ -182,6 +183,7 @@ def GetAnnualStatistics(DataDF):
     annual values for each water year.  Water year, as defined by the USGS,
     starts on October 1."""
     DataDF['Discharge'] = DataDF['Discharge'].dropna()
+    
     # get annual mean
     A_mean = DataDF['Discharge'].resample('AS-OCT').mean()
     # get annual max
@@ -191,9 +193,7 @@ def GetAnnualStatistics(DataDF):
     # get Coeff Var
     A_cv   = DataDF['Discharge'].resample('AS-OCT').std().div(A_mean)*100
     # get skewness
-    A_sk   = DataDF.resample('AS-OCT')
-    A_sk   = A_sk.apply({'Discharge': lambda x: stats.skew(x,bias=False)})
-    A_sk = A_sk.fillna(0)
+    A_sk   = DataDF['Discharge'].resample('AS-OCT').skew()
     # get T-Q mean
     A_tq   = CalcTqmean(DataDF['Discharge'])['Tqmean'].resample('AS-OCT').sum()
     # get RB index
@@ -205,7 +205,7 @@ def GetAnnualStatistics(DataDF):
     
     # Create Annual Statistics DataFrame
     frame = { 'Mean Flow': A_mean, 'Peak Flow': A_peak, 'Median Flow': A_med,
-              'Coeff Var': A_cv, 'Skew': A_sk.Discharge, 'Tqmean':A_tq, 'R-B index':A_rb['R-B Index'],
+              'Coeff Var': A_cv, 'Skew': A_sk, 'Tqmean':A_tq, 'R-B index':A_rb['R-B Index'],
               '7Q': A_7q, '3xMedian': A_3x } 
 #    print(frame)
     WYDataDF = pd.DataFrame(frame, index = DataDF['Discharge'].resample('AS-OCT').index) 
