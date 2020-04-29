@@ -10,7 +10,8 @@
 #
 """
 Modfied on 2020/04/28 by Pin-Ching Li
-
+This script is written for annual and monthly analysis of streamflow dataset
+Also, the data quality 
 """
 import pandas as pd
 import scipy.stats as stats
@@ -203,7 +204,7 @@ def GetAnnualStatistics(DataDF):
     
     # Create Annual Statistics DataFrame
     frame = { 'Mean Flow': A_mean, 'Peak Flow': A_peak, 'Median Flow': A_med,
-              'Coeff Var': A_cv, 'Skew': A_sk, 'Tqmean':A_tq, 'R-B index':A_rb['R-B Index'],
+              'Coeff Var': A_cv, 'skew': A_sk, 'Tqmean':A_tq, 'R-B index':A_rb['R-B Index'],
               '7Q': A_7q, '3xMedian': A_3x } 
 #    print(frame)
     WYDataDF = pd.DataFrame(frame) 
@@ -231,7 +232,7 @@ def GetMonthlyStatistics(DataDF):
       
     # Create Annual Statistics DataFrame
     frame = { 'Mean Flow': M_mean, 'Peak Flow': M_peak, 'Median Flow': M_med,
-              'Coeff Var': M_cv, 'Skew': M_sk, 'Tqmean':M_tq, 'R-B index':M_rb['R-B Index']} 
+              'Coeff Var': M_cv, 'skew': M_sk, 'Tqmean':M_tq, 'R-B index':M_rb['R-B Index']} 
 #    print(frame)
     MoDataDF = pd.DataFrame(frame) 
 
