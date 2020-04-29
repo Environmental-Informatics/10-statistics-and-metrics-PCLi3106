@@ -11,7 +11,7 @@
 """
 Modfied on 2020/04/28 by Pin-Ching Li
 This script is written for annual and monthly analysis of streamflow dataset
-Also, the data quality 
+Also, the data quality is checked and nan values are replaced
 """
 import pandas as pd
 import scipy.stats as stats
@@ -181,6 +181,7 @@ def GetAnnualStatistics(DataDF):
     the given streamflow time series.  Values are retuned as a dataframe of
     annual values for each water year.  Water year, as defined by the USGS,
     starts on October 1."""
+    DataDF['Discharge'].dropna()
     # get annual mean
     A_mean = DataDF['Discharge'].resample('AS-OCT').mean()
     # get annual max
@@ -190,13 +191,15 @@ def GetAnnualStatistics(DataDF):
     # get Coeff Var
     A_cv   = DataDF['Discharge'].resample('AS-OCT').std().div(A_mean)*100
     # get skewness
-    A_sk   = DataDF['Discharge'].resample('AS-OCT').skew()
+    A_sk   = DataDF.resample('AS-OCT')
+    A_sk   = A_sk.apply({'Discharge': lambda x: stats.skew(x,bias=False)})
+    A_sk = A_sk.fillna(0)
+    print('A_sk')
+    print(A_sk)
     # get T-Q mean
     A_tq   = CalcTqmean(DataDF['Discharge'])['Tqmean'].resample('AS-OCT').sum()
     # get RB index
     A_rb   = CalcRBindex(DataDF['Discharge']).resample('AS-OCT').sum()
-    print('A_rb')
-    print(A_rb)
     # get 7-day low flow
     A_7q   = Calc7Q(DataDF['Discharge'])['7Q']
     # get 3xMedian
@@ -204,7 +207,7 @@ def GetAnnualStatistics(DataDF):
     
     # Create Annual Statistics DataFrame
     frame = { 'Mean Flow': A_mean, 'Peak Flow': A_peak, 'Median Flow': A_med,
-              'Coeff Var': A_cv, 'skew': A_sk, 'Tqmean':A_tq, 'R-B index':A_rb['R-B Index'],
+              'Coeff Var': A_cv, 'Skew': A_sk.Discharge, 'Tqmean':A_tq, 'R-B index':A_rb['R-B Index'],
               '7Q': A_7q, '3xMedian': A_3x } 
 #    print(frame)
     WYDataDF = pd.DataFrame(frame) 
@@ -223,8 +226,6 @@ def GetMonthlyStatistics(DataDF):
     M_med  = DataDF['Discharge'].resample('M').median()
     # get Coeff Var
     M_cv   = DataDF['Discharge'].resample('M').std().div(M_mean)*100
-    # get skewness
-    M_sk   = DataDF['Discharge'].resample('M').skew()
     # get T-Q mean
     M_tq   = CalcTqmean(DataDF['Discharge'])['Tqmean'].resample('M').sum()
     # get RB index
@@ -232,7 +233,7 @@ def GetMonthlyStatistics(DataDF):
       
     # Create Annual Statistics DataFrame
     frame = { 'Mean Flow': M_mean, 'Peak Flow': M_peak, 'Median Flow': M_med,
-              'Coeff Var': M_cv, 'skew': M_sk, 'Tqmean':M_tq, 'R-B index':M_rb['R-B Index']} 
+              'Coeff Var': M_cv, 'Tqmean':M_tq, 'R-B index':M_rb['R-B Index']} 
 #    print(frame)
     MoDataDF = pd.DataFrame(frame) 
 
