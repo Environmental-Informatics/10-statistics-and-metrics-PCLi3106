@@ -182,33 +182,35 @@ def GetAnnualStatistics(DataDF):
     the given streamflow time series.  Values are retuned as a dataframe of
     annual values for each water year.  Water year, as defined by the USGS,
     starts on October 1."""
-    DataDF['Discharge'] = DataDF['Discharge'].dropna()
+    Discharge = DataDF['Discharge'].dropna()
+    
     
     # get annual mean
-    A_mean = DataDF['Discharge'].resample('AS-OCT').mean()
+    A_mean = Discharge.resample('AS-OCT').mean()
     # get annual max
-    A_peak = DataDF['Discharge'].resample('AS-OCT').max()
+    A_peak = Discharge.resample('AS-OCT').max()
     # get annual median
-    A_med  = DataDF['Discharge'].resample('AS-OCT').median()
+    A_med  = Discharge.resample('AS-OCT').median()
     # get Coeff Var
-    A_cv   = DataDF['Discharge'].resample('AS-OCT').std().div(A_mean)*100
+    A_cv   = Discharge.resample('AS-OCT').std().div(A_mean)*100
     # get skewness
-    A_sk   = DataDF['Discharge'].resample('AS-OCT').skew()
+    A_sk   = Discharge.resample('AS-OCT').skew()
     # get T-Q mean
-    A_tq   = CalcTqmean(DataDF['Discharge'])['Tqmean'].resample('AS-OCT').sum()
+    A_tq   = CalcTqmean(Discharge)['Tqmean'].resample('AS-OCT').sum()
     # get RB index
-    A_rb   = CalcRBindex(DataDF['Discharge']).resample('AS-OCT').sum()
+    A_rb   = CalcRBindex(Discharge).resample('AS-OCT').sum()
     # get 7-day low flow
-    A_7q   = Calc7Q(DataDF['Discharge'])['7Q']
+    A_7q   = Calc7Q(Discharge)['7Q']
     # get 3xMedian
-    A_3x   = CalcExceed3TimesMedian(DataDF['Discharge'])['3xMedian'].resample('AS-OCT').sum()
+    A_3x   = CalcExceed3TimesMedian(Discharge)['3xMedian'].resample('AS-OCT').sum()
     
     # Create Annual Statistics DataFrame
     frame = { 'Mean Flow': A_mean, 'Peak Flow': A_peak, 'Median Flow': A_med,
               'Coeff Var': A_cv, 'Skew': A_sk, 'Tqmean':A_tq, 'R-B index':A_rb['R-B Index'],
               '7Q': A_7q, '3xMedian': A_3x } 
 #    print(frame)
-    WYDataDF = pd.DataFrame(frame, index = DataDF['Discharge'].resample('AS-OCT').index) 
+    WYDataDF = pd.DataFrame.from_dict(frame) 
+    WYDataDF.index =  DataDF.resample('AS-OCT').index
 
     return ( WYDataDF )
 
@@ -253,7 +255,8 @@ def GetMonthlyAverages(MoDataDF):
     Mon_avg = []
     for i in range(12):
         Mon_avg.append(MoDataDF.iloc[i:600:12].mean())
-    MonthlyAverages = pd.DataFrame(Mon_avg,index=[j for j in range(1,13)])
+    MonthlyAverages = pd.DataFrame(Mon_avg,index=[10,11,12,1,2,3,4,5,6,7,8,9])
+    MonthlyAverages = MonthlyAverages.sort_index()
     return( MonthlyAverages )
 
 # the following condition checks whether we are running as a script, in which 
