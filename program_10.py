@@ -60,7 +60,8 @@ def ClipData( DataDF, startDate, endDate ):
     # drop the data points with date before startdate
     DataDF.drop(less_index, inplace=True)
     DataDF.drop(larger_index,inplace=True)
-    
+    # report missing values
+    MissingValues = DataDF['Discharge'].isna().sum()
     return( DataDF, MissingValues )
 
 def CalcTqmean(Qvalues):
