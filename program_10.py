@@ -72,23 +72,11 @@ def CalcTqmean(Qvalues):
        exceeds mean streamflow for each year. Tqmean is based on the
        duration rather than the volume of streamflow. The routine returns
        the Tqmean value for the given data array."""
-    # get mean value of each year
+    # drop nan value
     Qvalues = Qvalues.dropna()
-    A_mean = Qvalues.resample('AS-OCT').mean()
-    Date= Qvalues.index[0]
-    wy = 0
-    tq =[]
-    for i in range(Qvalues.size):
-        if Qvalues[i]>A_mean[wy]:
-            tq.append(1)
-        else:
-            tq.append(0)
-        Date = Date+timedelta(days=1)
-        # determine which water year it is
-        if Date.month ==10:
-            if Date.day == 1:
-                wy +=1
-    Tqmean = pd.DataFrame(tq,index=Qvalues.index,columns=['Tqmean'])
+    # get Tqmean
+    Tqmean  = (Qvalues>Qvalues.mean()).sum()/len(Qvalues)
+    
     return (Tqmean)
 
 def CalcRBindex(Qvalues):
@@ -99,21 +87,11 @@ def CalcRBindex(Qvalues):
        values of day-to-day changes in daily discharge volumes
        (pathlength) by total discharge volumes for each year. The
        routine returns the RBindex value for the given data array."""
-    # total discahrge amount in an year
-    A_sum = Qvalues.resample('AS-OCT').sum()
-    # get the absolute
-    rb = abs(Qvalues[1:].values-Qvalues[:-1].values)
-    RBindex = pd.DataFrame(rb.tolist(),index=Qvalues.index[1:],columns=['R-B Index'])
-    # sum the changes in every year, then divide it by total discharge amount
-    Date= Qvalues.index[1]
-    wy = 0
-    for i in range(RBindex.size):
-        RBindex.iloc[i] = RBindex.iloc[i]/A_sum[wy]
-        Date = Date+timedelta(days=1)
-        # determine which water year it is
-        if Date.month ==10:
-            if Date.day == 1:
-                wy +=1
+    # drop nan value
+    Qvalues = Qvalues.dropna()
+    # get RBindex
+    RBindex = Qvalues.diff()
+    RBindex = (abs(RBindex).sum())/(Qvalues.sum())
 
     return ( RBindex )
 
@@ -125,29 +103,10 @@ def Calc7Q(Qvalues):
        picking the lowest average flow in any 7-day period during
        that year.  The routine returns the 7Q (7-day low flow) value
        for the given data array."""
-    # Start Date 
-    Date= Qvalues.index[7]
-    # first water year
-    wy  = 0
-    # smallest 7q number
-    # default number is set to be un reasonably large
-    q7_least = 99999
-    Q7  = []
-    for i in range(7,Qvalues.size):
-        q7 = Qvalues[i-7:i].mean()
-        if q7 < q7_least:
-            q7_least = q7
-        Date = Date+timedelta(days=1)
-        if Date.month ==10:
-            # 7 days 
-            if Date.day == 7:
-                wy +=1
-                Q7.append(q7_least)
-                # set q7_least to default
-                q7_least = 99999
-    Q7.append(q7_least)
-    index_ann = Qvalues.resample('AS-OCT').index
-    val7Q = pd.DataFrame(Q7,index=index_ann,columns=['7Q'])
+    # drop nan value
+    Qvalues = Qvalues.dropna()
+    # apply rolling function with 7 days window
+    val7Q   = (Qvalues.rolling(window=7).mean()).min()
     return ( val7Q )
 
 def CalcExceed3TimesMedian(Qvalues):
@@ -157,24 +116,9 @@ def CalcExceed3TimesMedian(Qvalues):
        provided) and then counting the number of days with flow greater than 
        3 times that value.   The routine returns the count of events greater 
        than 3 times the median annual flow value for the given data array."""
-    # total discahrge amount in an year
-    A_med = Qvalues.resample('AS-OCT').median()    
-    # Start Date 
-    Date= Qvalues.index[0]
-    # first water year
-    wy  = 0
-    x3  = []
-    for i in range(Qvalues.size):
-        if Qvalues[i]>A_med[wy]*3:
-            x3.append(1)
-        else:
-            x3.append(0)
-        Date = Date+timedelta(days=1)
-        # start of a new water year
-        if Date.month ==10:
-            if Date.day == 1:
-                wy +=1
-    median3x = pd.DataFrame(x3,index=Qvalues.index,columns=['3xMedian'])
+    # drop nan
+    Qvalues = Qvalues.dropna()
+    median3x = (Qvalues > (Qvalues.median())*3).sum()
     return ( median3x )
 
 def GetAnnualStatistics(DataDF):
@@ -182,62 +126,56 @@ def GetAnnualStatistics(DataDF):
     the given streamflow time series.  Values are retuned as a dataframe of
     annual values for each water year.  Water year, as defined by the USGS,
     starts on October 1."""
-    Discharge = DataDF['Discharge'].dropna()
-    
-    
+    # column_names:
+    colname = ['site_no','Mean Flow','Peak Flow','Median Flow',
+               'Coeff Var', 'Skew', 'Tqmean', 'R-B index','7Q',
+               '3xMedian']
+    # resample dataframe first with water year
+    DataDF_WY = DataDF.resample('AS-OCT')
+    WY_avg    = DataDF_WY.mean()
+    WYDataDF = pd.DataFrame(index=WY_avg.index,columns=colname)
+    # get site no
+    WYDataDF['site_no'] = DataDF_WY['site_no'].median()
     # get annual mean
-    A_mean = Discharge.resample('AS-OCT').mean()
+    WYDataDF['Mean Flow'] = DataDF_WY['Discharge'].mean()
     # get annual max
-    A_peak = Discharge.resample('AS-OCT').max()
+    WYDataDF['Peak Flow']   = DataDF_WY['Discharge'].max()
     # get annual median
-    A_med  = Discharge.resample('AS-OCT').median()
+    WYDataDF['Median Flow'] =DataDF_WY['Discharge'].median()
     # get Coeff Var
-    A_cv   = Discharge.resample('AS-OCT').std().div(A_mean)*100
+    WYDataDF['Coeff Var']  = (DataDF_WY['Discharge'].std()/(DataDF_WY['Discharge'].mean()))*100
     # get skewness
-    A_sk   = Discharge.resample('AS-OCT').skew()
+    WYDataDF['Skew']   =DataDF_WY.apply({'Discharge': lambda x: stats.skew(x)})
     # get T-Q mean
-    A_tq   = CalcTqmean(Discharge)['Tqmean'].resample('AS-OCT').sum()
+    WYDataDF['Tqmean'] =DataDF_WY.apply({'Discharge': lambda x: CalcTqmean(x)})
     # get RB index
-    A_rb   = CalcRBindex(Discharge).resample('AS-OCT').sum()
+    WYDataDF['R-B index'] =DataDF_WY.apply({'Discharge': lambda x: CalcRBindex(x)})
     # get 7-day low flow
-    A_7q   = Calc7Q(Discharge)['7Q']
+    WYDataDF['7Q'] =DataDF_WY.apply({'Discharge': lambda x: Calc7Q(x)})
     # get 3xMedian
-    A_3x   = CalcExceed3TimesMedian(Discharge)['3xMedian'].resample('AS-OCT').sum()
+    WYDataDF['3xMedian'] =DataDF_WY.apply({'Discharge': lambda x: CalcExceed3TimesMedian(x)})
     
-    # Create Annual Statistics DataFrame
-    frame = { 'Mean Flow': A_mean, 'Peak Flow': A_peak, 'Median Flow': A_med,
-              'Coeff Var': A_cv, 'Skew': A_sk, 'Tqmean':A_tq, 'R-B index':A_rb['R-B Index'],
-              '7Q': A_7q, '3xMedian': A_3x } 
-#    print(frame)
-    WYDataDF = pd.DataFrame.from_dict(frame) 
-    WYDataDF.index =  DataDF.resample('AS-OCT').index
-
     return ( WYDataDF )
 
 def GetMonthlyStatistics(DataDF):
     """This function calculates monthly descriptive statistics and metrics 
     for the given streamflow time series.  Values are returned as a dataframe
     of monthly values for each year."""
-    # get monthly mean
-    DataDF['Discharge'] = DataDF['Discharge'].dropna()
-    M_mean = DataDF['Discharge'].resample('M').mean()
-    # get annual max
-    M_peak = DataDF['Discharge'].resample('M').max()
-    # get annual median
-    M_med  = DataDF['Discharge'].resample('M').median()
+    colname = ['site_no','Mean Flow','Coeff Var','Tqmean', 'R-B index']
+    # resample dataframe first with water year
+    DataDF_M = DataDF.resample('MS')
+    M_avg    = DataDF_M.mean()
+    MoDataDF = pd.DataFrame(index=M_avg.index,columns=colname)
+    # get site no
+    MoDataDF['site_no'] = DataDF_M['site_no'].median()
+    # get annual mean
+    MoDataDF['Mean Flow'] = DataDF_M['Discharge'].mean()
     # get Coeff Var
-    M_cv   = DataDF['Discharge'].resample('M').std().div(M_mean)*100
+    MoDataDF['Coeff Var']  = (DataDF_M['Discharge'].std()/(DataDF_M['Discharge'].mean()))*100
     # get T-Q mean
-    M_tq   = CalcTqmean(DataDF['Discharge'])['Tqmean'].resample('M').sum()
+    MoDataDF['Tqmean'] =DataDF_M.apply({'Discharge': lambda x: CalcTqmean(x)})
     # get RB index
-    M_rb   = CalcRBindex(DataDF['Discharge']).resample('M').sum()
-      
-    # Create Annual Statistics DataFrame
-    frame = { 'Mean Flow': M_mean, 'Peak Flow': M_peak, 'Median Flow': M_med,
-              'Coeff Var': M_cv, 'Tqmean':M_tq, 'R-B index':M_rb['R-B Index']} 
-#    print(frame)
-    MoDataDF = pd.DataFrame(frame, index = DataDF['Discharge'].resample('M').index
-) 
+    MoDataDF['R-B index'] =DataDF_M.apply({'Discharge': lambda x: CalcRBindex(x)})    
 
     return ( MoDataDF )
 
@@ -329,22 +267,38 @@ if __name__ == '__main__':
 
     # output all the files
     # output Annual Metrics
-    f_AM = open('Annual_Metrics.csv', 'a')
+    f_AM = open('Annual_Metrics.csv', 'w')
+    i = 0
     for AM in AM_out:
+        if i >0:
+              f_AM = open('Annual_Metrics.csv', 'a')  
         AM.to_csv(f_AM)
+        i+=1
     f_AM.close()
     # output Monthly Metrics
-    f_MM = open('Monthly_Metrics.csv', 'a')
+    f_MM = open('Monthly_Metrics.csv', 'w')
+    i = 0
     for MM in MM_out:
+        if i>0:
+            f_MM = open('Monthly_Metrics.csv', 'a')
         MM.to_csv(f_MM)
+        i+=1
     f_MM.close()    
     # output Averaged Annual Metrics
-    f_AA = open('Averaged_Annual_Metrics.txt', 'a')
+    f_AA = open('Averaged_Annual_Metrics.txt', 'w')
+    i=0
     for AA in AA_out:
+        if i >0:
+            f_AA = open('Averaged_Annual_Metrics.txt', 'a')
         AA.to_csv(f_AA,sep='\t')
+        i+=1
     f_AA.close()  
     # output Averaged Monthly Metrics
-    f_MA = open('Averaged_Monthly_Metrics.txt', 'a')
+    f_MA = open('Averaged_Monthly_Metrics.txt', 'w')
+    i = 0
     for MA in MA_out:
+        if i>0:
+            f_MA = open('Averaged_Monthly_Metrics.txt', 'a')
         MA.to_csv(f_MA,sep='\t')
+        i+=1
     f_MA.close()
